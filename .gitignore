@@ -1,0 +1,15 @@
+logs/*
+logs/*.jpg
+*logs*
+outputs/
+*__pycache__*
+__pycache__/main.cpython-38.pyc
+ldm/models/diffusion/__pycache__/ddpm.cpython-38.pyc
+ldm/data/__pycache__/personalized.cpython-38.pyc
+*.pyc*
+kubectl/*
+*kubectl*
+*.xlsx
+*.ipynb
+*.zip
+src/taming-transformers/
