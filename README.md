@@ -5,6 +5,7 @@
 <a href="https://www.apache.org/licenses/LICENSE-2.0.txt"><img src="https://img.shields.io/badge/License-Apache-yellow"></a>
 <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch->=1.10.0-Red?logo=pytorch"></a>
 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/papers/2310.12274)
+![Maturity level-0](https://img.shields.io/badge/Maturity%20Level-ML--0-red)
 
 
 ![teaser](docs/teaser.jpg)
