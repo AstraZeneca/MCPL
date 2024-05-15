@@ -1,4 +1,4 @@
-# An Image is Worth Multiple Words: Discovering Object Level Concepts using Multi-Concept Prompt Learning
+# An Image is Worth Multiple Words: Discovering Object Level Concepts using Multi-Concept Prompt Learning (ICML 2024)
 
 <a href="https://astrazeneca.github.io/mcpl.github.io/"><img src="https://img.shields.io/static/v1?label=Project&message=Website&color=blue"></a>
 <a href="https://arxiv.org/abs/2310.12274"><img src="https://img.shields.io/badge/arXiv-2305.16311-b31b1b.svg"></a>
@@ -10,7 +10,7 @@
 
 ![teaser](docs/teaser.jpg)
 
-> <a href="https://astrazeneca.github.io/mcpl.github.io">**An Image is Worth Multiple Words: Discovering Object Level Concepts using Multi-Concept Prompt Learning**</a>
+> <a href="https://astrazeneca.github.io/mcpl.github.io">**An Image is Worth Multiple Words: Discovering Object Level Concepts using Multi-Concept Prompt Learning (ICML 2024)**</a>
 >
 > <a href="https://chenjin.netlify.app/">Chen Jin<sup>1</sup></a> 
     <a href="https://rt416.github.io/">Ryutaro Tanno<sup>2</sup></a> 
@@ -30,16 +30,26 @@ Naive learning multiple text embeddings from single image-sentence pair without 
 ## Method
 <img src="docs/method.jpg"/>
 
+Input images from our [natural_2_concepts](dataset/natural_2_concepts) dataset.
+
 ## Applications
 
 ### Multiple concepts from single image
 <img src="docs/editing_examples_single_image.jpg"/>
 
+Input images from our [natural_2_concepts](dataset/natural_2_concepts) dataset.
+
+
 ### Per-image different multiple concepts 
 <img src="docs/editing_examples_per_image.jpg"/>
 
+Input images from [P2P demo images](https://github.com/google/prompt-to-prompt?tab=readme-ov-file).
+
+
 ### Out-of-Distribution concept discovery and hypothesis generation
 <img src="docs/editing_examples_medical.jpg"/>
+
+Input images from [LGE CMR](https://www.sciencedirect.com/science/article/pii/S1361841516000050) and [MIMIC-CXR](https://www.nature.com/articles/s41597-019-0322-0) dataset.
 
 ## Dataset
 We generate and collected a [Multi-Concept-Dataset](dataset) including a total of ~ 1400 images and masked objects/concepts as follows
@@ -180,16 +190,29 @@ python main.py --base configs/latent-diffusion/txt2img-1p4B-finetune.yaml \
 To generate new images of the learned concept, run:
 ```
 python scripts/txt2img.py --ddim_eta 0.0 
-                          --n_samples 8 
-                          --n_iter 2 
-                          --scale 10.0 
-                          --ddim_steps 50 
-                          --embedding_path /path/to/logs/trained_model/checkpoints/embeddings_gs-5049.pt 
-                          --ckpt_path /path/to/pretrained/model.ckpt 
-                          --prompt "a photo of green * and orange @"
+            --n_samples 8 
+            --n_iter 2 
+            --scale 10.0 
+            --ddim_steps 50 
+            --embedding_path /path/to/logs/trained_model/checkpoints/embeddings_gs-6099.pt 
+            --ckpt_path /path/to/pretrained/model.ckpt 
+            --prompt "a photo of green * and orange @"
 ```
 
 where * and @ is the placeholder string used during inversion.
+
+## Code scructure
+Our code is builds on the code from the [Textural Inversion](https://github.com/rinongal/textual_inversion) ([MIT licence](https://github.com/rinongal/textual_inversion?tab=MIT-1-ov-file#readme)) library as well as the [Prompt-to-Prompt](https://github.com/google/prompt-to-prompt/) ([Apache-2.0 licence](https://github.com/google/prompt-to-prompt/?tab=Apache-2.0-1-ov-file#readme)) codebase.
+
+The mainjority modifications are performed in the following files, where we provide docstrings for all functions: 
+```
+./main.py
+./src/p2p/p2p_ldm_utils.py
+./src/p2p/ptp_utils.py
+./ldm/modules/embedding_manager.py
+./ldm/models/diffusion/ddpm.py
+```
+The rest lib files are mostly unchanged and inherent from prior work.
 
 ## FAQ
 
@@ -214,6 +237,3 @@ If you make use of our work, please cite our paper:
   year={2023}
 }
 ```
-
-## Acknowledgements 
-This code is builds on the code from the [Textural Inversion](https://github.com/rinongal/textual_inversion) library as well as the [Prompt-to-Prompt](https://github.com/google/prompt-to-prompt/) codebase.

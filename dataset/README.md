@@ -12,7 +12,9 @@ This is the dataset we collected for our Multi-Concepts learning research, if yo
 
 
 ## Dataset
-We generate and collected a [Multi-Concept-Dataset](dataset) including a total of ~ 1400 images and masked objects/concepts as follows
+[Reference and Licenses](references_and_licenses.txt) 
+
+We generate and collected a [Multi-Concept-Dataset](.) including a total of ~ 1400 images and masked objects/concepts as follows
 
   /  (370 images)
   /natural_2_concepts  
@@ -21,10 +23,10 @@ We generate and collected a [Multi-Concept-Dataset](dataset) including a total o
 
 | Data file name | Size | # of images |
 | --- | --- | ---: |
-| [medical_2_concepts](dataset/medical_2_concepts/) | 2.5M | 370 |
-| [natural_2_concepts](dataset/natural_2_concepts/) | 36M | 415 |
-| [natural_345_concepts](dataset/natural_345_concepts/) | 13M | 525 |
-| [real_natural_concepts](dataset/real_natural_concepts/) | 5.6M | 137 |
+| [medical_2_concepts](medical_2_concepts/) | 2.5M | 370 |
+| [natural_2_concepts](natural_2_concepts/) | 36M | 415 |
+| [natural_345_concepts](natural_345_concepts/) | 13M | 525 |
+| [real_natural_concepts](real_natural_concepts/) | 5.6M | 137 |
 
 ## Citation
 

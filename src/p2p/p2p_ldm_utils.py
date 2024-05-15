@@ -1,6 +1,20 @@
+# Copyright AstraZeneca UK Ltd. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sys
 import os
-sys.path.insert(1, '/home/jovyan/vol-1/root_chen/git_chen/textual_inversion_chen')
 
 from typing import Union, Tuple, List, Callable, Dict, Optional
 import torch
@@ -23,12 +37,17 @@ from IPython.display import display
 import numpy as np
 import matplotlib as mpl
 
+# Constants
 NUM_DIFFUSION_STEPS = 50
 GUIDANCE_SCALE = 5.
 MAX_NUM_WORDS = 77
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
 class LocalMask:
+    """
+    LocalMask class used to apply a masking operation to attention maps
+    based on specified keywords and conditions.
+    """
 
     def __call__(self, x_t, attention_store, step):
         if self.attn_mask_type == 'skip':
@@ -58,7 +77,6 @@ class LocalMask:
         # out shape: B,1,W,H
         if self.attn_mask_type == 'hard':
             mask = mask.gt(self.threshold)
-        # redundent?
         mask = (mask[:1] + mask).float()
         # mask.retain_grad()
         # combine baseline promp (without mask) and the rest masked prompts
@@ -67,7 +85,22 @@ class LocalMask:
        
     def __init__(self, tokenizer: nn.Module, prompts: List[str], words: [List[List[str]]], \
                     attn_mask_type: str = 'hard', presudo_words_softmax: [List[str]] = [''], \
-                    presudo_words_infonce: [List[str]] = [''], adj_aug_infonce: [List[str]] = [''], n_gpu: int = 0, threshold: float = .3):
+                    presudo_words_infonce: [List[str]] = [''], adj_aug_infonce: [List[str]] = [''], \
+                    n_gpu: int = 0, threshold: float = .3):
+        """
+        Initialize the LocalMask class with the provided parameters.
+
+        Args:
+            tokenizer (nn.Module): Tokenizer for processing prompts.
+            prompts (List[str]): List of prompts.
+            words (List[List[str]]): List of words to apply masking.
+            attn_mask_type (str): Type of attention mask ('hard' or 'skip').
+            presudo_words_softmax (List[str]): Words for softmax masking.
+            presudo_words_infonce (List[str]): Words for InfoNCE masking.
+            adj_aug_infonce (List[str]): Adjective augmentation for InfoNCE.
+            n_gpu (int): GPU index.
+            threshold (float): Threshold for hard masking.
+        """
         alpha_layers = torch.zeros(len(prompts),  1, 1, 1, 1, MAX_NUM_WORDS)
         device = torch.device(f'cuda:{n_gpu}')
         for i, (prompt, words_) in enumerate(zip(prompts, words)):
@@ -111,6 +144,10 @@ class LocalMask:
         
 
 class LocalBlend:
+    """
+    LocalBlend class for applying a blending operation to attention maps
+    based on specified keywords and conditions.
+    """
 
     def __call__(self, x_t, attention_store, step):
         k = 1
@@ -129,13 +166,21 @@ class LocalBlend:
         mask = mask / mask.max(2, keepdims=True)[0].max(3, keepdims=True)[0]
         # out shape: B,1,W,H
         mask = mask.gt(self.threshold)
-        # redundent?
         mask = (mask[:1] + mask).float()
         # combine baseline promp (without mask) and the rest masked prompts
         x_t = x_t[:1] + mask * (x_t - x_t[:1])
         return x_t
        
     def __init__(self, tokenizer: nn.Module, prompts: List[str], words: [List[List[str]]], threshold: float = .3):
+        """
+        Initialize the LocalBlend class with the provided parameters.
+
+        Args:
+            tokenizer (nn.Module): Tokenizer for processing prompts.
+            prompts (List[str]): List of prompts.
+            words (List[List[str]]): List of words to apply blending.
+            threshold (float): Threshold for blending.
+        """
         alpha_layers = torch.zeros(len(prompts),  1, 1, 1, 1, MAX_NUM_WORDS)
         # device = prompts.device
         for i, (prompt, words_) in enumerate(zip(prompts, words)):
@@ -149,6 +194,9 @@ class LocalBlend:
 
 
 class AttentionControl(abc.ABC):
+    """
+    Abstract base class for attention control mechanisms.
+    """
     
     def step_callback(self, x_t):
         return x_t
@@ -185,12 +233,18 @@ class AttentionControl(abc.ABC):
 
 
 class EmptyControl(AttentionControl):
+    """
+    EmptyControl class for performing no-op on attention maps.
+    """
     
     def forward (self, attn, is_cross: bool, place_in_unet: str):
         return attn
     
     
 class AttentionStore(AttentionControl):
+    """
+    AttentionStore class for storing and managing attention maps.
+    """
 
     @staticmethod
     def get_empty_store():
@@ -230,6 +284,9 @@ class AttentionStore(AttentionControl):
         self.average_att_time = average_att_time
 
 class AttentionStoreMask(AttentionControl):
+    """
+    AttentionStoreMask class for storing and managing attention maps with masking.
+    """
 
     @staticmethod
     def get_empty_store():
@@ -269,6 +326,9 @@ class AttentionStoreMask(AttentionControl):
         self.average_att_time = average_att_time
 
 class AttentionMask(AttentionStoreMask, abc.ABC):
+    """
+    AttentionMask class for applying masking operations during attention processing.
+    """
     def step_callback(self, x_t):
         if self.local_blend is not None:
             x_t = self.local_blend(x_t, self.attention_store, self.cur_step)
@@ -283,6 +343,9 @@ class AttentionMask(AttentionStoreMask, abc.ABC):
         self.local_blend = local_blend
         
 class AttentionControlEdit(AttentionStore, abc.ABC):
+    """
+    Abstract base class for attention control mechanisms with editing capabilities.
+    """
     
     def step_callback(self, x_t):
         if self.local_blend is not None:
@@ -318,6 +381,17 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
                  cross_replace_steps: Union[float, Tuple[float, float], Dict[str, Tuple[float, float]]],
                  self_replace_steps: Union[float, Tuple[float, float]],
                  local_blend: Optional[LocalBlend] = None):
+        """
+        Initialize the AttentionControlEdit class with the provided parameters.
+
+        Args:
+            prompts (list): List of prompts.
+            tokenizer (nn.Module): Tokenizer for processing prompts.
+            num_steps (int): Number of steps in the diffusion process.
+            cross_replace_steps (Union[float, Tuple[float, float], Dict[str, Tuple[float, float]]]): Steps for cross attention replacement.
+            self_replace_steps (Union[float, Tuple[float, float]]): Steps for self attention replacement.
+            local_blend (Optional[LocalBlend]): Optional LocalBlend instance for blending.
+        """
         super(AttentionControlEdit, self).__init__()
         self.batch_size = len(prompts)
         self.cross_replace_alpha = ptp_utils.get_time_words_attention_alpha(prompts, num_steps, cross_replace_steps, tokenizer).to(device)
@@ -327,6 +401,9 @@ class AttentionControlEdit(AttentionStore, abc.ABC):
         self.local_blend = local_blend
 
 class AttentionReplace(AttentionControlEdit):
+    """
+    AttentionReplace class for replacing attention maps during the diffusion process.
+    """
 
     def replace_cross_attention(self, attn_base, att_replace):
         return torch.einsum('hpw,bwn->bhpn', attn_base, self.mapper)
@@ -338,6 +415,9 @@ class AttentionReplace(AttentionControlEdit):
         
 
 class AttentionRefine(AttentionControlEdit):
+    """
+    AttentionRefine class for refining attention maps during the diffusion process.
+    """
 
     def replace_cross_attention(self, attn_base, att_replace):
         attn_base_replace = attn_base[:, :, self.mapper].permute(2, 0, 1, 3)
@@ -353,6 +433,9 @@ class AttentionRefine(AttentionControlEdit):
 
 
 class AttentionReweight(AttentionControlEdit):
+    """
+    AttentionReweight class for reweighting attention maps during the diffusion process.
+    """
 
     def replace_cross_attention(self, attn_base, att_replace):
         if self.prev_controller is not None:
@@ -370,6 +453,18 @@ class AttentionReweight(AttentionControlEdit):
 
 def get_equalizer(tokenizer, text: str, word_select: Union[int, Tuple[int, ...]], values: Union[List[float],
                   Tuple[float, ...]]):
+    """
+    Create an equalizer tensor for modifying attention weights.
+
+    Args:
+        tokenizer (nn.Module): Tokenizer for processing text.
+        text (str): Text to be processed.
+        word_select (Union[int, Tuple[int, ...]]): Indices of words to select.
+        values (Union[List[float], Tuple[float, ...]]): Values to set for the selected words.
+
+    Returns:
+        torch.Tensor: Equalizer tensor.
+    """
     if type(word_select) is int or type(word_select) is str:
         word_select = (word_select,)
     equalizer = torch.ones(len(values), 77)
@@ -384,6 +479,22 @@ def get_equalizer(tokenizer, text: str, word_select: Union[int, Tuple[int, ...]]
 def aggregate_attention(prompts: list, attention_store: AttentionStore, res: int, \
                         from_where: List[str], is_cross: bool, select: int, \
                         average_att_ch: bool = True, average_att_time: bool = True):
+    """
+    Aggregate attention maps from the attention store.
+
+    Args:
+        prompts (list): List of prompts.
+        attention_store (AttentionStore): Attention store object.
+        res (int): Resolution of attention maps.
+        from_where (List[str]): List of attention map sources.
+        is_cross (bool): Whether to aggregate cross-attention maps.
+        select (int): Index of the prompt to select.
+        average_att_ch (bool): Whether to average attention maps across channels.
+        average_att_time (bool): Whether to average attention maps across time steps.
+
+    Returns:
+        torch.Tensor: Aggregated attention map.
+    """
     out = []
     attention_maps = attention_store.get_average_attention(average_att_time=average_att_time)
 
@@ -401,12 +512,24 @@ def aggregate_attention(prompts: list, attention_store: AttentionStore, res: int
     return out.cpu()
 
 def _remove_axes(ax):
+    """
+    Remove axes from a matplotlib Axes object.
+
+    Args:
+        ax (matplotlib.axes.Axes): Axes object to remove axes from.
+    """
     ax.xaxis.set_major_formatter(plt.NullFormatter())
     ax.yaxis.set_major_formatter(plt.NullFormatter())
     ax.set_xticks([])
     ax.set_yticks([])
 
 def remove_axes(axes):
+    """
+    Remove axes from a list of matplotlib Axes objects.
+
+    Args:
+        axes (list): List of Axes objects to remove axes from.
+    """
     if len(axes.shape) == 2:
         for ax1 in axes:
             for ax in ax1:
@@ -415,80 +538,19 @@ def remove_axes(axes):
         for ax in axes:
             _remove_axes(ax)
 
-def find_rand_seed(ldm, prompts, controller, config, guidance_scale=5.0, side=5, rrange=(0,1000), out_dir='', device='cuda'):
-    fig, ax = plt.subplots(side, side, figsize=(side * 2, side * 2))
-    for i in range(side):
-        for j in range(side):
-            seed = random.randint(rrange[0],rrange[1])
-            g_gpu = torch.Generator(device=device).manual_seed(seed)
-            images, _ = run_and_display(ldm, prompts, controller, config, \
-                run_baseline=False, generator=g_gpu, \
-                guidance_scale=guidance_scale, return_img=True)
-
-            ax[i,j].imshow(ptp_utils.view_images(images, return_img=True))
-            ax[i,j].set_xlabel(str(seed), fontsize=14)
-    remove_axes(ax)
-    plt.tight_layout()
-    if out_dir != '':
-        plt.savefig(os.path.join(out_dir))
-    plt.show()
-    plt.clf()
-
-def find_cross_steps_reweight(ldm, prompts, equalizer, tokenizer, num_diff_steps, config, latent, step=0.1, out_dir='', guidance_scale=5.0):
-    n_rows = int(1.0 // step)
-    n_cols = 3
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(n_rows * 2, n_cols * len(prompts) * 2))
-    for i in range(n_rows):
-        step_c = step * i
-
-        controller = AttentionReweight(prompts, tokenizer, num_diff_steps, cross_replace_steps=1.0-step_c, self_replace_steps=0., equalizer=equalizer)
-        images, _ = run_and_display(ldm, prompts, controller, config, latent=latent, run_baseline=False, return_img=True, guidance_scale=guidance_scale)
-        ax[i,0].imshow(ptp_utils.view_images(images, return_img=True))
-        ax[i,0].set_xlabel(f'cross_steps={str(round(1.-step_c, 2))}, self_steps={str(round(0.0, 2))}', fontsize=14)
-
-        controller = AttentionReweight(prompts, tokenizer, num_diff_steps, cross_replace_steps=1.0-step_c, self_replace_steps=.1, equalizer=equalizer)
-        images, _ = run_and_display(ldm, prompts, controller, config, latent=latent, run_baseline=False, return_img=True, guidance_scale=guidance_scale)
-        ax[i,1].imshow(ptp_utils.view_images(images, return_img=True))
-        ax[i,1].set_xlabel(f'cross_steps={str(round(1.-step_c, 2))}, self_steps={str(round(0.1, 2))}', fontsize=14)
-
-        controller = AttentionReweight(prompts, tokenizer, num_diff_steps, cross_replace_steps=1.0-step_c, self_replace_steps=.2, equalizer=equalizer)
-        images, _ = run_and_display(ldm, prompts, controller, config, latent=latent, run_baseline=False, return_img=True, guidance_scale=guidance_scale)
-        ax[i,2].imshow(ptp_utils.view_images(images, return_img=True))
-        ax[i,2].set_xlabel(f'cross_steps={str(round(1.-step_c, 2))}, self_steps={str(round(0.2, 2))}', fontsize=14)
-    remove_axes(ax)
-    plt.tight_layout()
-    if out_dir != '':
-        plt.savefig(os.path.join(out_dir))
-    plt.show()
-    plt.clf()
-
-def find_cross_steps(ldm, prompts, tokenizer, num_diff_steps, config, latent, step=0.05, out_dir='', guidance_scale=5.0):
-    n_rows = int(0.5 // step)
-    n_cols = 2
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(n_rows * 2, n_cols * len(prompts) * 2))
-    for i in range(n_rows):
-        step_c = step * i
-
-        controller = AttentionReplace(prompts, tokenizer, num_diff_steps, cross_replace_steps=1.0-step_c, self_replace_steps=0.+step_c)
-        images, _ = run_and_display(ldm, prompts, controller, config, latent=latent, run_baseline=False, return_img=True, guidance_scale=guidance_scale)
-        ax[i,0].imshow(ptp_utils.view_images(images, return_img=True))
-        ax[i,0].set_xlabel(f'cross_steps={str(round(1.-step_c, 2))}, self_steps={str(round(0.+step_c, 2))}', fontsize=14)
-
-        controller = AttentionReplace(prompts, tokenizer, num_diff_steps, cross_replace_steps=0.+step_c, self_replace_steps=1.0-step_c)
-        images, _ = run_and_display(ldm, prompts, controller, config, latent=latent, run_baseline=False, return_img=True, guidance_scale=guidance_scale)
-        ax[i,1].imshow(ptp_utils.view_images(images, return_img=True))
-        ax[i,1].set_xlabel(f'cross_steps={str(round(0.+step_c, 2))}, self_steps={str(round(1.0-step_c, 2))}', fontsize=14)
-    remove_axes(ax)
-    plt.tight_layout()
-    if out_dir != '':
-        plt.savefig(os.path.join(out_dir))
-    plt.show()
-    plt.clf()
-
 def apply_mask(image, mask, select_c, white_bg=False):
     """
     Apply a binary mask to an image.
     Foreground is kept while the background is replaced with NaN.
+
+    Args:
+        image (PIL.Image): Input image.
+        mask (np.array): Binary mask.
+        select_c (int): Selected class for masking.
+        white_bg (bool): Whether to use a white background.
+
+    Returns:
+        PIL.Image: Masked image.
     """
     # Convert mask to boolean array
     mask_bool = mask == select_c
@@ -516,6 +578,27 @@ def apply_mask(image, mask, select_c, white_bg=False):
 def plot_img_mask(ldm, prompts, emb_path_list, exp_names, device, out_dir, out_name, config, \
     latent=None, array_latent=False, GUIDANCE_SCALE=5.0, attn_threshold=0.5, select_clsses = ['*','&'], \
     show_text=True, mask_concepts=False, g_gpu=None):
+    """
+    Plot images and attention masks for given embeddings.
+
+    Args:
+        ldm: Latent diffusion model.
+        prompts (list): List of prompts.
+        emb_path_list (list): List of embedding paths.
+        exp_names (list): List of experiment names.
+        device (str): Device to run the model on.
+        out_dir (str): Output directory for saving images.
+        out_name (str): Output file name.
+        config: Configuration object.
+        latent: Latent tensor.
+        array_latent (bool): Whether to use array latent.
+        GUIDANCE_SCALE (float): Guidance scale for the diffusion process.
+        attn_threshold (float): Threshold for attention masks.
+        select_clsses (list): List of selected classes.
+        show_text (bool): Whether to show text in the images.
+        mask_concepts (bool): Whether to mask concepts.
+        g_gpu (torch.Generator): Generator for random numbers.
+    """
     n_rows = 1
     n_cols = len(emb_path_list)+1 # img, mask, attn
     fig, ax = plt.subplots(n_rows, n_cols, figsize=(n_cols * 10, n_rows * 10))
@@ -559,6 +642,27 @@ def plot_img_mask(ldm, prompts, emb_path_list, exp_names, device, out_dir, out_n
 def plot_img_attn_mask(ldm, prompts, emb_path_list, exp_names, device, out_dir, out_name, config, \
     latent=None, array_latent=False, GUIDANCE_SCALE=5.0, attn_threshold=0.5, select_clsses = ['*','&'], \
     show_text=True, mask_concepts=False, g_gpu=None):
+    """
+    Plot images, attention masks, and masked concepts for given embeddings.
+
+    Args:
+        ldm: Latent diffusion model.
+        prompts (list): List of prompts.
+        emb_path_list (list): List of embedding paths.
+        exp_names (list): List of experiment names.
+        device (str): Device to run the model on.
+        out_dir (str): Output directory for saving images.
+        out_name (str): Output file name.
+        config: Configuration object.
+        latent: Latent tensor.
+        array_latent (bool): Whether to use array latent.
+        GUIDANCE_SCALE (float): Guidance scale for the diffusion process.
+        attn_threshold (float): Threshold for attention masks.
+        select_clsses (list): List of selected classes.
+        show_text (bool): Whether to show text in the images.
+        mask_concepts (bool): Whether to mask concepts.
+        g_gpu (torch.Generator): Generator for random numbers.
+    """
     n_rows = len(emb_path_list)
     n_cols = 3 # img, mask, attn
     if mask_concepts:
@@ -652,6 +756,22 @@ def plot_img_attn_mask(ldm, prompts, emb_path_list, exp_names, device, out_dir, 
 def show_cross_attention(tokenizer: nn.Module, prompts: list, attention_store: AttentionStore, \
         res: int, from_where: List[str], select: int = 0, return_img: bool = False, \
         out_path_img='', save_img=False, show_text=True, select_clsses=[]):
+    """
+    Show cross-attention maps for the given prompts.
+
+    Args:
+        tokenizer (nn.Module): Tokenizer for processing prompts.
+        prompts (list): List of prompts.
+        attention_store (AttentionStore): Attention store object.
+        res (int): Resolution of attention maps.
+        from_where (List[str]): List of attention map sources.
+        select (int): Index of the prompt to select.
+        return_img (bool): Whether to return the image.
+        out_path_img (str): Output path for saving the image.
+        save_img (bool): Whether to save the image.
+        show_text (bool): Whether to show text in the images.
+        select_clsses (list): List of selected classes.
+    """
     tokens = tokenizer.encode(prompts[select])
     decoder = tokenizer.decode
     attention_maps = aggregate_attention(prompts, attention_store, res, from_where, True, select)
@@ -682,6 +802,21 @@ def show_cross_attention_with_mask(tokenizer: nn.Module, prompts: list, \
                                     select: int = 0, threshold: float = 0.3, \
                                     average_att_ch: bool = True, average_att_time: bool = True, \
                                     segment_method: str = 'threshold'):
+    """
+    Show cross-attention maps with masks for the given prompts.
+
+    Args:
+        tokenizer (nn.Module): Tokenizer for processing prompts.
+        prompts (list): List of prompts.
+        attention_store (AttentionStore): Attention store object.
+        res (int): Resolution of attention maps.
+        from_where (List[str]): List of attention map sources.
+        select (int): Index of the prompt to select.
+        threshold (float): Threshold for masking.
+        average_att_ch (bool): Whether to average attention maps across channels.
+        average_att_time (bool): Whether to average attention maps across time steps.
+        segment_method (str): Method for segmenting the masks ('threshold' or 'kmean').
+    """
     tokens = tokenizer.encode(prompts[select])
     decoder = tokenizer.decode
     attention_maps = aggregate_attention(prompts, attention_store, res, from_where, True, select, average_att_ch=average_att_ch, average_att_time=average_att_time)
@@ -711,6 +846,26 @@ def show_cross_attention_mask_merged(tokenizer: nn.Module, prompts: list, \
                                         select: int = 0, threshold: float = 0.65, select_clsses: list = ['a','photo'], \
                                         average_att_ch: bool = True, average_att_time: bool = True, masked_scale: bool = False, \
                                         background_scale: float = 1.0, images = None, blend = 0.3, return_img: bool = False):
+    """
+    Show merged cross-attention masks for the given prompts.
+
+    Args:
+        tokenizer (nn.Module): Tokenizer for processing prompts.
+        prompts (list): List of prompts.
+        attention_store (AttentionStore): Attention store object.
+        res (int): Resolution of attention maps.
+        from_where (List[str]): List of attention map sources.
+        select (int): Index of the prompt to select.
+        threshold (float): Threshold for masking.
+        select_clsses (list): List of selected classes.
+        average_att_ch (bool): Whether to average attention maps across channels.
+        average_att_time (bool): Whether to average attention maps across time steps.
+        masked_scale (bool): Whether to scale masked regions.
+        background_scale (float): Scale for background regions.
+        images (np.array): Array of images.
+        blend (float): Blending factor for masks.
+        return_img (bool): Whether to return the image.
+    """
     tokens = tokenizer.encode(prompts[select])
     decoder = tokenizer.decode
     attention_maps = aggregate_attention(prompts, attention_store, res, from_where, True, select, average_att_ch=average_att_ch, average_att_time=average_att_time)
@@ -768,6 +923,17 @@ def show_cross_attention_mask_merged(tokenizer: nn.Module, prompts: list, \
 def show_self_attention_comp(prompts: list, \
                                 attention_store: AttentionStore, res: int, from_where: List[str],
                         max_com=10, select: int = 0):
+    """
+    Show self-attention components for the given prompts.
+
+    Args:
+        prompts (list): List of prompts.
+        attention_store (AttentionStore): Attention store object.
+        res (int): Resolution of attention maps.
+        from_where (List[str]): List of attention map sources.
+        max_com (int): Maximum number of components to show.
+        select (int): Index of the prompt to select.
+    """
     attention_maps = aggregate_attention(prompts, attention_store, res, from_where, False, select).numpy().reshape((res ** 2, res ** 2))
     u, s, vh = np.linalg.svd(attention_maps - np.mean(attention_maps, axis=1, keepdims=True))
     images = []
@@ -783,6 +949,15 @@ def show_self_attention_comp(prompts: list, \
 
 
 def sort_by_eq(eq):
+    """
+    Sort images by equalizer values.
+
+    Args:
+        eq (list): List of equalizer values.
+
+    Returns:
+        function: Sorting function for images.
+    """
     
     def inner_(images):
         swap = 0
@@ -808,6 +983,26 @@ def run_and_display(ldm, prompts, controller, config, latent=None, run_baseline=
     callback:Optional[Callable[[np.ndarray], np.ndarray]] = None, generator=None, \
     out_name='gen_images', num_diff_steps=50, array_latent=False, guidance_scale=5.0, \
     return_img=False, save_img=False, out_path_img='../outputs/p2p/attention.png'):
+    """
+    Run the latent diffusion model and display generated images.
+
+    Args:
+        ldm: Latent diffusion model.
+        prompts (list): List of prompts.
+        controller: Attention controller.
+        config: Configuration object.
+        latent: Latent tensor.
+        run_baseline (bool): Whether to run the baseline model.
+        callback (Optional[Callable[[np.ndarray], np.ndarray]]): Callback function for processing images.
+        generator: Generator for random numbers.
+        out_name (str): Output file name.
+        num_diff_steps (int): Number of diffusion steps.
+        array_latent (bool): Whether to use array latent.
+        guidance_scale (float): Guidance scale for the diffusion process.
+        return_img (bool): Whether to return the image.
+        save_img (bool): Whether to save the image.
+        out_path_img (str): Output path for saving the image.
+    """
     if run_baseline:
         print("w.o. prompt-to-prompt")
         images, latent = run_and_display(ldm, prompts, EmptyControl(), config, latent=latent, run_baseline=False, out_name='gen_baseline')

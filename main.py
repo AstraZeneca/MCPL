@@ -1,3 +1,18 @@
+# Copyright AstraZeneca UK Ltd. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse, os, sys, datetime, glob, importlib, csv
 import numpy as np
 import time
@@ -25,6 +40,17 @@ from src.p2p.p2p_ldm_utils import LocalMask, AttentionMask
 from src.p2p.ptp_utils import register_attention_control_t2i
 
 def load_model_from_config(config, ckpt, verbose=False):
+    """
+    Load a model from a given configuration and checkpoint.
+
+    Args:
+        config (OmegaConf): Configuration object for the model.
+        ckpt (str): Path to the checkpoint file.
+        verbose (bool): If True, prints missing and unexpected keys in the state dictionary. Default is False.
+
+    Returns:
+        nn.Module: The loaded model.
+    """
     print(f"Loading model from {ckpt}")
     pl_sd = torch.load(ckpt, map_location="cpu")
     sd = pl_sd["state_dict"]
@@ -41,6 +67,12 @@ def load_model_from_config(config, ckpt, verbose=False):
     return model
 
 def get_parser(**parser_kwargs):
+    """
+    Get an argument parser with specified options.
+
+    Returns:
+        argparse.ArgumentParser: Configured argument parser.
+    """
     def str2bool(v):
         if isinstance(v, bool):
             return v
@@ -165,47 +197,47 @@ def get_parser(**parser_kwargs):
 
     parser.add_argument("--placeholder_string", 
         type=str, 
-        help="multi-concepts v0-2: Placeholder string which will be used to denote the string holding multiple concepts. Overwrites the config options.")
+        help="MCPL: Placeholder string which will be used to denote the string holding multiple concepts. Overwrites the config options.")
 
     parser.add_argument("--presudo_words", 
         type=str, 
-        help="multi-concepts v1: A list of presudo words corresponding to multiple concepts.")
+        help="MCPL: A list of presudo words corresponding to multiple concepts.")
     
     parser.add_argument("--presudo_words_infonce", 
         type=str, 
         default="", 
-        help="multi-concepts v3.3: A list of presudo words (semantic mutual exclusive) to calculate additional CL (infoNCE) loss")
+        help="PromptCL: A list of presudo words (semantic mutual exclusive) to calculate additional CL (infoNCE) loss")
 
     parser.add_argument("--adj_aug_infonce", 
         type=str, 
         default="", 
-        help="multi-concepts v3.4: A list of adj. words to be treated as additional agumented positive of presudo_words_infonce in CL loss")
+        help="Bind adjective: A list of adj. words to be treated as additional agumented positive of presudo_words_infonce in CL loss")
 
     parser.add_argument("--infonce_temperature",
         type=float,
         default=0.07,
-        help="multi-concepts v3.3: infonce_temperature",
+        help="PromptCL: infonce_temperature",
     )
 
     parser.add_argument("--infonce_scale",
         type=float,
         default=1.0,
-        help="multi-concepts v3.3: infonce_scale",
+        help="PromptCL: infonce_scale",
     )
     
     parser.add_argument("--presudo_words_softmax", 
         type=str, 
         default="", 
-        help="multi-concepts v3.2: A list of presudo words to calculate additional softmax with, default means no additional softmax")
+        help="PromptCL: A list of presudo words to calculate additional softmax with, default means no additional softmax")
 
     parser.add_argument("--attn_words", 
         type=str, 
-        help="multi-concepts v3: A list of keywords for attention masking.")
+        help="Attention Mask: A list of keywords for attention masking.")
 
     parser.add_argument("--attn_mask_type", 
         type=str, 
         default="hard", 
-        help="multi-concepts v3.1: Type of attention mask, choose from 'hard: apply threhold', 'soft: no threshold' or 'skip: no mask (cause we want to keep controller for CL)'")
+        help="Attention Mask: Type of attention mask, choose from 'hard: apply threhold', 'soft: no threshold' or 'skip: no mask (cause we want to keep controller for CL)'")
 
     parser.add_argument("--batch_size",
         type=int,
@@ -221,6 +253,15 @@ def get_parser(**parser_kwargs):
 
 
 def nondefault_trainer_args(opt):
+    """
+    Get non-default trainer arguments.
+
+    Args:
+        opt (argparse.Namespace): Parsed command-line arguments.
+
+    Returns:
+        list: List of non-default trainer arguments.
+    """
     parser = argparse.ArgumentParser()
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args([])
@@ -228,19 +269,45 @@ def nondefault_trainer_args(opt):
 
 
 class WrappedDataset(Dataset):
-    """Wraps an arbitrary object with __len__ and __getitem__ into a pytorch dataset"""
+    """
+    Wraps an arbitrary object with __len__ and __getitem__ into a PyTorch dataset.
+
+    Args:
+        dataset (object): The dataset object to wrap.
+    """
 
     def __init__(self, dataset):
         self.data = dataset
 
     def __len__(self):
+        """
+        Get the length of the dataset.
+
+        Returns:
+            int: The length of the dataset.
+        """
         return len(self.data)
 
     def __getitem__(self, idx):
+        """
+        Get an item from the dataset by index.
+
+        Args:
+            idx (int): The index of the item.
+
+        Returns:
+            object: The item at the specified index.
+        """
         return self.data[idx]
 
 
 def worker_init_fn(_):
+    """
+    Worker initialization function for setting random seed and handling dataset splits.
+
+    Args:
+        _ (torch.utils.data.get_worker_info): Worker information object.
+    """
     worker_info = torch.utils.data.get_worker_info()
 
     dataset = worker_info.dataset
@@ -257,6 +324,22 @@ def worker_init_fn(_):
 
 
 class DataModuleFromConfig(pl.LightningDataModule):
+    """
+    LightningDataModule for loading data from a configuration.
+
+    Args:
+        batch_size (int): The batch size for data loading.
+        train (dict, optional): Configuration for training dataset.
+        validation (dict, optional): Configuration for validation dataset.
+        test (dict, optional): Configuration for test dataset.
+        predict (dict, optional): Configuration for predict dataset.
+        wrap (bool, optional): Whether to wrap the dataset.
+        num_workers (int, optional): Number of workers for data loading.
+        shuffle_test_loader (bool, optional): Whether to shuffle the test dataloader.
+        use_worker_init_fn (bool, optional): Whether to use the worker initialization function.
+        shuffle_val_dataloader (bool, optional): Whether to shuffle the validation dataloader.
+    """
+
     def __init__(self, batch_size, train=None, validation=None, test=None, predict=None,
                  wrap=False, num_workers=None, shuffle_test_loader=False, use_worker_init_fn=False,
                  shuffle_val_dataloader=False):
@@ -280,10 +363,19 @@ class DataModuleFromConfig(pl.LightningDataModule):
         self.wrap = wrap
 
     def prepare_data(self):
+        """
+        Prepare data for training, validation, testing, and prediction.
+        """
         for data_cfg in self.dataset_configs.values():
             instantiate_from_config(data_cfg)
 
     def setup(self, stage=None):
+        """
+        Set up datasets for training, validation, testing, and prediction.
+
+        Args:
+            stage (str, optional): Stage to set up (train, val, test, predict).
+        """
         self.datasets = dict(
             (k, instantiate_from_config(self.dataset_configs[k]))
             for k in self.dataset_configs)
@@ -292,6 +384,12 @@ class DataModuleFromConfig(pl.LightningDataModule):
                 self.datasets[k] = WrappedDataset(self.datasets[k])
 
     def _train_dataloader(self):
+        """
+        Create the training dataloader.
+
+        Returns:
+            DataLoader: The training dataloader.
+        """
         is_iterable_dataset = isinstance(self.datasets['train'], Txt2ImgIterableBaseDataset)
         if is_iterable_dataset or self.use_worker_init_fn:
             init_fn = worker_init_fn
@@ -302,6 +400,15 @@ class DataModuleFromConfig(pl.LightningDataModule):
                           worker_init_fn=init_fn)
 
     def _val_dataloader(self, shuffle=False):
+        """
+        Create the validation dataloader.
+
+        Args:
+            shuffle (bool, optional): Whether to shuffle the validation dataloader.
+
+        Returns:
+            DataLoader: The validation dataloader.
+        """
         if isinstance(self.datasets['validation'], Txt2ImgIterableBaseDataset) or self.use_worker_init_fn:
             init_fn = worker_init_fn
         else:
@@ -313,6 +420,15 @@ class DataModuleFromConfig(pl.LightningDataModule):
                           shuffle=shuffle)
 
     def _test_dataloader(self, shuffle=False):
+        """
+        Create the test dataloader.
+
+        Args:
+            shuffle (bool, optional): Whether to shuffle the test dataloader.
+
+        Returns:
+            DataLoader: The test dataloader.
+        """
         is_iterable_dataset = isinstance(self.datasets['train'], Txt2ImgIterableBaseDataset)
         if is_iterable_dataset or self.use_worker_init_fn:
             init_fn = worker_init_fn
@@ -326,6 +442,15 @@ class DataModuleFromConfig(pl.LightningDataModule):
                           num_workers=self.num_workers, worker_init_fn=init_fn, shuffle=shuffle)
 
     def _predict_dataloader(self, shuffle=False):
+        """
+        Create the predict dataloader.
+
+        Args:
+            shuffle (bool, optional): Whether to shuffle the predict dataloader.
+
+        Returns:
+            DataLoader: The predict dataloader.
+        """
         if isinstance(self.datasets['predict'], Txt2ImgIterableBaseDataset) or self.use_worker_init_fn:
             init_fn = worker_init_fn
         else:
@@ -335,6 +460,18 @@ class DataModuleFromConfig(pl.LightningDataModule):
 
 
 class SetupCallback(Callback):
+    """
+    A callback for setting up directories and saving configurations before training starts.
+
+    Args:
+        resume (str): Path to resume from.
+        now (str): Current timestamp.
+        logdir (str): Directory for logging.
+        ckptdir (str): Directory for checkpoints.
+        cfgdir (str): Directory for configurations.
+        config (OmegaConf): Project configuration.
+        lightning_config (OmegaConf): Lightning configuration.
+    """
     def __init__(self, resume, now, logdir, ckptdir, cfgdir, config, lightning_config):
         super().__init__()
         self.resume = resume
@@ -346,12 +483,26 @@ class SetupCallback(Callback):
         self.lightning_config = lightning_config
 
     def on_keyboard_interrupt(self, trainer, pl_module):
+        """
+        Handle keyboard interrupt and save the checkpoint.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The Lightning module.
+        """
         if trainer.global_rank == 0:
             print("Summoning checkpoint.")
             ckpt_path = os.path.join(self.ckptdir, "last.ckpt")
             trainer.save_checkpoint(ckpt_path)
 
     def on_pretrain_routine_start(self, trainer, pl_module):
+        """
+        Set up directories and save configurations before training starts.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The Lightning module.
+        """
         if trainer.global_rank == 0:
             # Create logdirs and save configs
             os.makedirs(self.logdir, exist_ok=True)
@@ -384,6 +535,20 @@ class SetupCallback(Callback):
 
 
 class ImageLogger(Callback):
+    """
+    A callback for logging images during training and validation.
+
+    Args:
+        batch_frequency (int): Frequency of logging images in terms of batches.
+        max_images (int): Maximum number of images to log.
+        clamp (bool, optional): Whether to clamp image values. Default is True.
+        increase_log_steps (bool, optional): Whether to increase log steps exponentially. Default is True.
+        rescale (bool, optional): Whether to rescale images to [0, 1]. Default is True.
+        disabled (bool, optional): Whether to disable image logging. Default is False.
+        log_on_batch_idx (bool, optional): Whether to log on batch index instead of global step. Default is False.
+        log_first_step (bool, optional): Whether to log the first step. Default is False.
+        log_images_kwargs (dict, optional): Additional keyword arguments for logging images.
+    """
     def __init__(self, batch_frequency, max_images, clamp=True, increase_log_steps=True,
                  rescale=True, disabled=False, log_on_batch_idx=False, log_first_step=False,
                  log_images_kwargs=None):
@@ -405,6 +570,15 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _testtube(self, pl_module, images, batch_idx, split):
+        """
+        Log images to TestTube logger.
+
+        Args:
+            pl_module (pl.LightningModule): The Lightning module.
+            images (dict): Dictionary of images to log.
+            batch_idx (int): Batch index.
+            split (str): Data split ('train' or 'val').
+        """
         for k in images:
             grid = torchvision.utils.make_grid(images[k])
             grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
@@ -417,6 +591,17 @@ class ImageLogger(Callback):
     @rank_zero_only
     def log_local(self, save_dir, split, images,
                   global_step, current_epoch, batch_idx):
+        """
+        Save images locally.
+
+        Args:
+            save_dir (str): Directory to save images.
+            split (str): Data split ('train' or 'val').
+            images (dict): Dictionary of images to save.
+            global_step (int): Global step value.
+            current_epoch (int): Current epoch number.
+            batch_idx (int): Batch index.
+        """
         root = os.path.join(save_dir, "images", split)
         for k in images:
             grid = torchvision.utils.make_grid(images[k], nrow=4)
@@ -435,6 +620,15 @@ class ImageLogger(Callback):
             Image.fromarray(grid).save(path)
 
     def log_img(self, pl_module, batch, batch_idx, split="train"):
+        """
+        Log images using the specified logging mechanism.
+
+        Args:
+            pl_module (pl.LightningModule): The Lightning module.
+            batch (dict): The batch of data.
+            batch_idx (int): Batch index.
+            split (str, optional): Data split ('train' or 'val'). Default is 'train'.
+        """
         if pl_module.controller is not None:
             print('AttentionMask-log_img-re-register: update attn layer counts at log_img ...')
             register_attention_control_t2i(pl_module, pl_module.controller)
@@ -472,6 +666,15 @@ class ImageLogger(Callback):
                 pl_module.train()
 
     def check_frequency(self, check_idx):
+        """
+        Check if the current step or batch index matches the logging frequency.
+
+        Args:
+            check_idx (int): Index to check.
+
+        Returns:
+            bool: True if logging is required, False otherwise.
+        """
         if ((check_idx % self.batch_freq) == 0 or (check_idx in self.log_steps)) and (
                 check_idx > 0 or self.log_first_step):
             try:
@@ -483,10 +686,32 @@ class ImageLogger(Callback):
         return False
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        """
+        Hook to log images at the end of a training batch.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The Lightning module.
+            outputs (dict): Outputs from the training step.
+            batch (dict): The batch of data.
+            batch_idx (int): Batch index.
+            dataloader_idx (int): Index of the dataloader.
+        """
         if not self.disabled and (pl_module.global_step > 0 or self.log_first_step):
             self.log_img(pl_module, batch, batch_idx, split="train")
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        """
+        Hook to log images at the end of a validation batch.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The Lightning module.
+            outputs (dict): Outputs from the validation step.
+            batch (dict): The batch of data.
+            batch_idx (int): Batch index.
+            dataloader_idx (int): Index of the dataloader.
+        """
         if not self.disabled and pl_module.global_step > 0:
             self.log_img(pl_module, batch, batch_idx, split="val")
         if hasattr(pl_module, 'calibrate_grad_norm'):
@@ -495,14 +720,31 @@ class ImageLogger(Callback):
 
 
 class CUDACallback(Callback):
+    """
+    Callback to log CUDA memory usage and training time for each epoch.
+    """
     # see https://github.com/SeanNaren/minGPT/blob/master/mingpt/callback.py
     def on_train_epoch_start(self, trainer, pl_module):
+        """
+        Hook that runs at the start of each training epoch to reset CUDA memory stats.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The Lightning module.
+        """
         # Reset the memory use counter
         torch.cuda.reset_peak_memory_stats(trainer.root_gpu)
         torch.cuda.synchronize(trainer.root_gpu)
         self.start_time = time.time()
 
     def on_train_epoch_end(self, trainer, pl_module):
+        """
+        Hook that runs at the end of each training epoch to log CUDA memory usage and epoch time.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The Lightning module.
+        """
         torch.cuda.synchronize(trainer.root_gpu)
         max_memory = torch.cuda.max_memory_allocated(trainer.root_gpu) / 2 ** 20
         epoch_time = time.time() - self.start_time
@@ -517,6 +759,12 @@ class CUDACallback(Callback):
             pass
 
 class ModeSwapCallback(Callback):
+    """
+    A callback to swap training modes at a specified step during training.
+
+    Args:
+        swap_step (int): The step at which to swap the training mode. Default is 2000.
+    """
 
     def __init__(self, swap_step=2000):
         super().__init__()
@@ -524,6 +772,13 @@ class ModeSwapCallback(Callback):
         self.swap_step = swap_step
 
     def on_train_epoch_start(self, trainer, pl_module):
+        """
+        Hook that runs at the start of each training epoch to check and swap the training mode.
+
+        Args:
+            trainer (pl.Trainer): The trainer instance.
+            pl_module (pl.LightningModule): The Lightning module.
+        """
         if trainer.global_step < self.swap_step and not self.is_frozen:
             self.is_frozen = True
             trainer.optimizers = [pl_module.configure_opt_embedding()]
@@ -533,52 +788,13 @@ class ModeSwapCallback(Callback):
             trainer.optimizers = [pl_module.configure_opt_model()]
 
 if __name__ == "__main__":
-    # custom parser to specify config files, train, test and debug mode,
-    # postfix, resume.
-    # `--key value` arguments are interpreted as arguments to the trainer.
-    # `nested.key=value` arguments are interpreted as config parameters.
-    # configs are merged from left-to-right followed by command line parameters.
-
-    # model:
-    #   base_learning_rate: float
-    #   target: path to lightning module
-    #   params:
-    #       key: value
-    # data:
-    #   target: main.DataModuleFromConfig
-    #   params:
-    #      batch_size: int
-    #      wrap: bool
-    #      train:
-    #          target: path to train dataset
-    #          params:
-    #              key: value
-    #      validation:
-    #          target: path to validation dataset
-    #          params:
-    #              key: value
-    #      test:
-    #          target: path to test dataset
-    #          params:
-    #              key: value
-    # lightning: (optional, has sane defaults and can be specified on cmdline)
-    #   trainer:
-    #       additional arguments to trainer
-    #   logger:
-    #       logger to instantiate
-    #   modelcheckpoint:
-    #       modelcheckpoint to instantiate
-    #   callbacks:
-    #       callback1:
-    #           target: importpath
-    #           params:
-    #               key: value
-
+    """
+    Main function to parse arguments, set up configurations, and run the training/testing process.
+    """
     now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
     # add cwd for convenience and to make classes in this file available when
     # running as `python main.py`
-    # (in particular `main.DataModuleFromConfig`)
     sys.path.append(os.getcwd())
 
     parser = get_parser()
@@ -596,8 +812,6 @@ if __name__ == "__main__":
             raise ValueError("Cannot find {}".format(opt.resume))
         if os.path.isfile(opt.resume):
             paths = opt.resume.split("/")
-            # idx = len(paths)-paths[::-1].index("logs")+1
-            # logdir = "/".join(paths[:idx])
             logdir = "/".join(paths[:-2])
             ckpt = opt.resume
         else:

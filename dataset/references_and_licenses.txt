@@ -1,0 +1,101 @@
+# Copyright AstraZeneca UK Ltd. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+Multi-Concept Dataset - References and Licenses
+
+This document consolidates the sources of the images that appear in the Multi-Concept dataset. 
+The authors of the work collected images from opensource datasets for the 'medical_2_concepts' images, generate images with opensource methods for the 'natural_2_concepts' and 'natural_345_concepts', and collected real images from the unsplash dataset for the 'real_natural_concepts'.
+We document detailed reference, source and license as follows:
+
+# medical_2_concepts
+./medical_2_concepts
+For the out-of-distribution bio-medical image dataset, we assemble three sets of radiological images featuring 6 organ/lesion concepts. These images are sourced from three public MRI segmentation datasets: heart myocardial infarction \citep{lalande2020emidec}, prostate segmentation \citep{antonelli2022medical}, and Brain Tumor Segmentation (BraTS) \citep{menze2014multimodal}. Each dataset includes per-concept masks.
+
+./medical_2_concepts/cardic_EMIDEC_neg_two_c: 
+@article{lalande2020emidec,
+  title={Emidec: a database usable for the automatic evaluation of myocardial infarction from delayed-enhancement cardiac MRI},
+  author={Lalande, Alain and Chen, Zhihao and Decourselle, Thomas and Qayyum, Abdul and Pommier, Thibaut and Lorgis, Luc and de La Rosa, Ezequiel and Cochet, Alexandre and Cottin, Yves and Ginhac, Dominique and others},
+  journal={Data},
+  volume={5},
+  number={4},
+  pages={89},
+  year={2020},
+  publisher={MDPI}
+}
+
+./medical_2_concepts/MSD_Task01_BrainTumour_two_c: 
+@article{menze2014multimodal,
+  title={The multimodal brain tumor image segmentation benchmark (BRATS)},
+  author={Menze, Bjoern H and Jakab, Andras and Bauer, Stefan and Kalpathy-Cramer, Jayashree and Farahani, Keyvan and Kirby, Justin and Burren, Yuliya and Porz, Nicole and Slotboom, Johannes and Wiest, Roland and others},
+  journal={IEEE transactions on medical imaging},
+  volume={34},
+  number={10},
+  pages={1993--2024},
+  year={2014},
+  publisher={IEEE}
+}
+
+./medical_2_concepts/MSD_Task05_Prostate_two_c: 
+@article{antonelli2022medical,
+  title={The medical segmentation decathlon},
+  author={Antonelli, Michela and Reinke, Annika and Bakas, Spyridon and Farahani, Keyvan and Kopp-Schneider, Annette and Landman, Bennett A and Litjens, Geert and Menze, Bjoern and Ronneberger, Olaf and Summers, Ronald M and others},
+  journal={Nature communications},
+  volume={13},
+  number={1},
+  pages={4128},
+  year={2022},
+  publisher={Nature Publishing Group UK London}
+}
+
+# natural_2_concepts
+./natural_2_concepts
+All images under the 'natural_2_concepts' are generated images using local text-driven editing, as proposed by \cite{patashnik2023localizing}. 
+@misc{patashnik2023localizing,
+      title={Localizing Object-level Shape Variations with Text-to-Image Diffusion Models},
+      author={Or Patashnik and Daniel Garibi and Idan Azuri and Hadar Averbuch-Elor and Daniel Cohen-Or},
+      year={2023},
+      eprint={2303.11306},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+
+# natural_345_concepts
+./natural_345_concepts
+For three to five concept images, we use break-a-scene \citep{avrahami2023break} to generate the more complex composed images. We generate nine sets containing 9 more object-level concepts. We then use separate pre-trained segmentation models—MaskFormer \citep{cheng2021per} to create masked objects
+@article{avrahami2023break,
+  title={Break-A-Scene: Extracting Multiple Concepts from a Single Image},
+  author={Avrahami, Omri and Aberman, Kfir and Fried, Ohad and Cohen-Or, Daniel and Lischinski, Dani},
+  journal={arXiv preprint arXiv:2305.16311},
+  year={2023}
+}
+@article{cheng2021per,
+  title={Per-pixel classification is not all you need for semantic segmentation},
+  author={Cheng, Bowen and Schwing, Alex and Kirillov, Alexander},
+  journal={Advances in Neural Information Processing Systems},
+  volume={34},
+  pages={17864--17875},
+  year={2021}
+}
+
+# real_natural_concepts
+./real_natural_concepts
+All real images are collected from Unsplash (https://unsplash.com/) with Free to use under the Unsplash License.
+All unsplash.com images have the Unsplash license copied below:
+https://unsplash.com/license
+
+Unsplash License
+
+Unsplash photos are made to be used freely. Our license reflects that.
+All photos can be downloaded and used for free
+Commercial and non-commercial purposes
+No permission needed (though attribution is appreciated!)
+
+What is not permitted 👎
+Photos cannot be sold without significant modification.
+Compiling photos from Unsplash to replicate a similar or competing service.
+
+Tip: How to give attribution ✏️
+Even though attribution isn’t required, Unsplash photographers appreciate it as it provides exposure to their work and encourages them to continue sharing.
+
+Longform
+Unsplash grants you an irrevocable, nonexclusive, worldwide copyright license to download, copy, modify, distribute, perform, and use images from Unsplash for free, including for commercial purposes, without permission from or attributing the photographer or Unsplash. This license does not include the right to compile images from Unsplash to replicate a similar or competing service.

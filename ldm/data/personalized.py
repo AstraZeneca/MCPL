@@ -188,9 +188,9 @@ class PersonalizedBase(Dataset):
         placeholder_string = self.placeholder_token
 
         if 'RELATE' in placeholder_string:
-            print(f'DEBUG-personalized: placeholder_string before replace: {placeholder_string}')
+            # print(f'DEBUG-personalized: placeholder_string before replace: {placeholder_string}')
             placeholder_string = placeholder_string.replace('RELATE',self.image_names[i % self.num_images])
-            print(f'DEBUG-personalized: placeholder_string after replace: {placeholder_string}')
+            # print(f'DEBUG-personalized: placeholder_string after replace: {placeholder_string}')
 
         if self.coarse_class_text:
             placeholder_string = f"{self.coarse_class_text} {placeholder_string}"

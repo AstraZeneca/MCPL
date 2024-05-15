@@ -1,4 +1,5 @@
-# Copyright 2022 Google LLC
+# Copyright AstraZeneca UK Ltd. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,12 +24,22 @@ from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
 
 import sys
-sys.path.append('/home/jovyan/vol-1/root_chen/git_chen/textual_inversion_chen')
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from einops import rearrange
 
 def text_under_image(image: np.ndarray, text: str, text_color: Tuple[int, int, int] = (0, 0, 0)):
+    """
+    Adds text under an image.
+
+    Args:
+        image (np.ndarray): Input image array.
+        text (str): Text to be added under the image.
+        text_color (Tuple[int, int, int]): RGB color of the text. Default is black.
+    
+    Returns:
+        np.ndarray: Image array with text added under it.
+    """
     h, w, c = image.shape
     offset = int(h * .2)
     img = np.ones((h + offset, w, c), dtype=np.uint8) * 255
@@ -42,6 +53,20 @@ def text_under_image(image: np.ndarray, text: str, text_color: Tuple[int, int, i
 
 
 def view_images(images, out_path='../outputs/p2p/attention.png', num_rows=1, offset_ratio=0.02, return_img=False, save_img=False):
+    """
+    Display or save a grid of images.
+
+    Args:
+        images (list or np.ndarray): List of images or image array.
+        out_path (str): Path to save the image. Default is '../outputs/p2p/attention.png'.
+        num_rows (int): Number of rows in the grid. Default is 1.
+        offset_ratio (float): Offset ratio between images. Default is 0.02.
+        return_img (bool): Whether to return the image. Default is False.
+        save_img (bool): Whether to save the image. Default is False.
+    
+    Returns:
+        PIL.Image: Image if return_img is True.
+    """
     if type(images) is list:
         num_empty = len(images) % num_rows
     elif images.ndim == 4:
@@ -74,6 +99,14 @@ def view_images(images, out_path='../outputs/p2p/attention.png', num_rows=1, off
         display(pil_img)
 
 def view_masks(images, num_rows=1, offset_ratio=0.02):
+    """
+    Display a grid of masks.
+
+    Args:
+        images (list or np.ndarray): List of masks or mask array.
+        num_rows (int): Number of rows in the grid. Default is 1.
+        offset_ratio (float): Offset ratio between masks. Default is 0.02.
+    """
     if type(images) is list:
         num_empty = len(images) % num_rows
     elif images.ndim == 4:
@@ -101,6 +134,21 @@ def view_masks(images, num_rows=1, offset_ratio=0.02):
     # display(pil_img)
 
 def diffusion_step(model, controller, latents, context, t, guidance_scale, low_resource=False):
+    """
+    Perform a single diffusion step.
+
+    Args:
+        model: Diffusion model.
+        controller: Attention controller.
+        latents (torch.FloatTensor): Latent tensor.
+        context (torch.FloatTensor): Context tensor.
+        t (torch.Tensor): Current timestep.
+        guidance_scale (float): Guidance scale for the diffusion process.
+        low_resource (bool): Whether to use low resource mode. Default is False.
+    
+    Returns:
+        torch.FloatTensor: Updated latent tensor.
+    """
     if low_resource:
         noise_pred_uncond = model.model.diffusion_model(latents, t, encoder_hidden_states=context[0])["sample"]
         noise_prediction_text = model.model.diffusion_model(latents, t, encoder_hidden_states=context[1])["sample"]
@@ -115,6 +163,16 @@ def diffusion_step(model, controller, latents, context, t, guidance_scale, low_r
 
 
 def latent2image(vae, latents):
+    """
+    Convert latents to images.
+
+    Args:
+        vae: Variational autoencoder.
+        latents (torch.FloatTensor): Latent tensor.
+    
+    Returns:
+        np.ndarray: Image array.
+    """
     latents = 1 / 0.18215 * latents
     image = vae.decode(latents)['sample']
     image = (image / 2 + 0.5).clamp(0, 1)
@@ -124,6 +182,20 @@ def latent2image(vae, latents):
 
 
 def init_latent(latent, model, height, width, generator, batch_size):
+    """
+    Initialize latent tensor.
+
+    Args:
+        latent (torch.FloatTensor): Input latent tensor.
+        model: Diffusion model.
+        height (int): Image height.
+        width (int): Image width.
+        generator (torch.Generator): Random number generator.
+        batch_size (int): Batch size.
+    
+    Returns:
+        tuple: Tuple containing the latent tensor and expanded latent tensor.
+    """
     if latent is None:
         latent = torch.randn(
             (1, model.model.diffusion_model.in_channels, height // 8, width // 8),
@@ -132,20 +204,6 @@ def init_latent(latent, model, height, width, generator, batch_size):
     latents = latent.expand(batch_size,  model.model.diffusion_model.in_channels, height // 8, width // 8).to(model.device)
     return latent, latents
 
-# def show_cross_attention(attention_store: AttentionStore, res: int, from_where: List[str], select: int = 0):
-#     tokens = tokenizer.encode(prompts[select])
-#     decoder = tokenizer.decode
-#     attention_maps = aggregate_attention(attention_store, res, from_where, True, select)
-#     images = []
-#     for i in range(len(tokens)):
-#         image = attention_maps[:, :, i]
-#         image = 255 * image / image.max()
-#         image = image.unsqueeze(-1).expand(*image.shape, 3)
-#         image = image.numpy().astype(np.uint8)
-#         image = np.array(Image.fromarray(image).resize((256, 256)))
-#         image = ptp_utils.text_under_image(image, decoder(int(tokens[i])))
-#         images.append(image)
-#     ptp_utils.view_images(np.stack(images, axis=0))
 
 @torch.no_grad()
 def text2image_plms(
@@ -161,19 +219,29 @@ def text2image_plms(
     verbose: Optional[bool] = False,
     array_latent: Optional[bool] = False,
 ):
+    """
+    Generate images from text using PLMS sampler.
+
+    Args:
+        model: Diffusion model.
+        controller: Attention controller.
+        opt: Options object.
+        prompt (List[str]): List of prompts.
+        num_inference_steps (int): Number of inference steps. Default is 50.
+        n_samples (int): Number of samples. Default is 1.
+        guidance_scale (float): Guidance scale for the diffusion process. Default is 5.
+        generator (Optional[torch.Generator]): Random number generator. Default is None.
+        latent (Optional[torch.FloatTensor]): Latent tensor. Default is None.
+        verbose (Optional[bool]): Verbose mode. Default is False.
+        array_latent (Optional[bool]): Whether to use array latent. Default is False.
+    
+    Returns:
+        tuple: Tuple containing the image array and latent tensor.
+    """
     register_attention_control_t2i(model, controller, eval_mode=True)
     height = width = 256
-    # batch_size = len(prompt)
     batch_size = n_samples * len(prompt)
-
-    # if opt.plms:
-    #     sampler = PLMSSampler(model)
-    # else:
-    #     sampler = DDIMSampler(model)
     sampler = PLMSSampler(model)
-    
-    # prompt = opt.prompt
-
     with torch.no_grad():
         with model.ema_scope():
             uc = None
@@ -200,8 +268,6 @@ def text2image_plms(
             # sampling
             C, H, W = shape[1:]
             size = shape
-            print(f'Data shape for PLMS sampling is {size}')
-            # expand samples, intermediates = self.plms_sampling ...
             device = model.device
             b = shape[0]
 
@@ -256,7 +322,6 @@ def text2image_plms(
     if array_latent and latent is None: # generate latents
         latent_r = latent_ay
    
-    # latent_r are essentially images (before decode) at each diffusion step -> which determined generated image
     return image, latent_r
 
 @torch.no_grad()
@@ -272,18 +337,27 @@ def text2image_ddpm(
     latent: Optional[torch.FloatTensor] = None,
     verbose: Optional[bool] = False,
 ):
+    """
+    Generate images from text using DDPM sampler.
+
+    Args:
+        model: Diffusion model.
+        controller: Attention controller.
+        opt: Options object.
+        prompt (List[str]): List of prompts.
+        num_inference_steps (int): Number of inference steps. Default is 50.
+        n_samples (int): Number of samples. Default is 8.
+        generator (Optional[torch.Generator]): Random number generator. Default is None.
+        latent (Optional[torch.FloatTensor]): Latent tensor. Default is None.
+        verbose (Optional[bool]): Verbose mode. Default is False.
+    
+    Returns:
+        tuple: Tuple containing the image array and latent tensor.
+    """
     register_attention_control_t2i(model, controller, eval_mode=True)
     height = width = 256
     batch_size = len(prompt)
-
-    # if opt.plms:
-    #     sampler = PLMSSampler(model)
-    # else:
-    #     sampler = DDIMSampler(model)
     sampler = PLMSSampler(model)
-    
-    # prompt = opt.prompt
-
     with torch.no_grad():
         with model.ema_scope():
             uc = None
@@ -292,11 +366,6 @@ def text2image_ddpm(
         
             cond = model.get_learned_conditioning(n_samples * prompt)
             shape = [n_samples, 4, height//8, width//8]
-            # samples_ddim, _ = sampler.sample(S=opt.ddim_steps,
-            #                                  conditioning=c,
-            #                                  ...
-
-            # expamd model.sample and model.p_sample_loop here
             b = shape[0]
 
             if latent is None:
@@ -338,6 +407,21 @@ def text2image_ldm(
     generator: Optional[torch.Generator] = None,
     latent: Optional[torch.FloatTensor] = None,
 ):
+    """
+    Generate images from text using LDM.
+
+    Args:
+        model: Diffusion model.
+        prompt (List[str]): List of prompts.
+        controller: Attention controller.
+        num_inference_steps (int): Number of inference steps. Default is 50.
+        guidance_scale (Optional[float]): Guidance scale for the diffusion process. Default is 7.
+        generator (Optional[torch.Generator]): Random number generator. Default is None.
+        latent (Optional[torch.FloatTensor]): Latent tensor. Default is None.
+    
+    Returns:
+        tuple: Tuple containing the image array and latent tensor.
+    """
     register_attention_control(model, controller)
     height = width = 256
     batch_size = len(prompt)
@@ -353,9 +437,6 @@ def text2image_ldm(
     model.scheduler.set_timesteps(num_inference_steps)
     for t in tqdm(model.scheduler.timesteps):
         latents = diffusion_step(model, controller, latents, context, t, guidance_scale)
-        # print(t)
-        # if t // 10 == 0:
-        #     show_cross_attention(controller, res=16, from_where=["up", "down"])
     
     image = latent2image(model.vqvae, latents)
    
@@ -373,6 +454,22 @@ def text2image_ldm_stable(
     latent: Optional[torch.FloatTensor] = None,
     low_resource: bool = False,
 ):
+    """
+    Generate images from text using stable LDM.
+
+    Args:
+        model: Diffusion model.
+        prompt (List[str]): List of prompts.
+        controller: Attention controller.
+        num_inference_steps (int): Number of inference steps. Default is 50.
+        guidance_scale (float): Guidance scale for the diffusion process. Default is 7.5.
+        generator (Optional[torch.Generator]): Random number generator. Default is None.
+        latent (Optional[torch.FloatTensor]): Latent tensor. Default is None.
+        low_resource (bool): Whether to use low resource mode. Default is False.
+    
+    Returns:
+        tuple: Tuple containing the image array and latent tensor.
+    """
     register_attention_control(model, controller)
     height = width = 512
     batch_size = len(prompt)
@@ -407,8 +504,14 @@ def text2image_ldm_stable(
     return image, latent
 
 def register_attention_control_t2i(model, controller, eval_mode=False):
-    # 1) count the number of cross/self attention layers in controller.num_att_layers
-    # 2) replace forward of CrossAttention layers with controller.forward
+    """
+    Register attention control for text-to-image models.
+
+    Args:
+        model: Diffusion model.
+        controller: Attention controller.
+        eval_mode (bool): Evaluation mode. Default is False.
+    """
     def ca_forward(self, place_in_unet):
         to_out = self.to_out
         if type(to_out) is torch.nn.modules.container.ModuleList:
@@ -442,11 +545,10 @@ def register_attention_control_t2i(model, controller, eval_mode=False):
                 mask = mask[:, None, :].repeat(h, 1, 1)
                 sim.masked_fill_(~mask, max_neg_value)
 
-            # attention, what we cannot get enough of
             attn = sim.softmax(dim=-1)
-            if eval_mode: # in eval_mode, we perform attn replace/edit
+            if eval_mode: 
                 attn = controller(attn, is_cross, place_in_unet)
-            else: # in train_mode, we don't change attn, only collect attn to produce mask
+            else: 
                 controller(attn.clone(), is_cross, place_in_unet)
             out = torch.einsum("b i j, b j d -> b i d", attn, v)
             out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
@@ -488,6 +590,13 @@ def register_attention_control_t2i(model, controller, eval_mode=False):
     controller.num_att_layers = cross_att_count
 
 def register_attention_control(model, controller):
+    """
+    Register attention control for text-to-image models.
+
+    Args:
+        model: Diffusion model.
+        controller: Attention controller.
+    """
     def ca_forward(self, place_in_unet):
         to_out = self.to_out
         if type(to_out) is torch.nn.modules.container.ModuleList:
@@ -559,6 +668,17 @@ def register_attention_control(model, controller):
 
     
 def get_word_inds(text: str, word_place: int, tokenizer):
+    """
+    Get the indices of specific words in a tokenized text.
+
+    Args:
+        text (str): Input text.
+        word_place (int or str): Word position or word string to find indices.
+        tokenizer: Tokenizer to encode the text.
+    
+    Returns:
+        np.ndarray: Array of word indices.
+    """
     split_text = text.split(" ")
     if type(word_place) is str:
         word_place = [i for i, word in enumerate(split_text) if word_place == word]
@@ -581,6 +701,18 @@ def get_word_inds(text: str, word_place: int, tokenizer):
 
 def update_alpha_time_word(alpha, bounds: Union[float, Tuple[float, float]], prompt_ind: int,
                            word_inds: Optional[torch.Tensor]=None):
+    """
+    Update the alpha values for time and word indices.
+
+    Args:
+        alpha (torch.Tensor): Alpha tensor.
+        bounds (Union[float, Tuple[float, float]]): Bounds for alpha values.
+        prompt_ind (int): Prompt index.
+        word_inds (Optional[torch.Tensor]): Word indices. Default is None.
+    
+    Returns:
+        torch.Tensor: Updated alpha tensor.
+    """
     if type(bounds) is float:
         bounds = 0, bounds
     start, end = int(bounds[0] * alpha.shape[0]), int(bounds[1] * alpha.shape[0])
@@ -595,6 +727,19 @@ def update_alpha_time_word(alpha, bounds: Union[float, Tuple[float, float]], pro
 def get_time_words_attention_alpha(prompts, num_steps,
                                    cross_replace_steps: Union[float, Dict[str, Tuple[float, float]]],
                                    tokenizer, max_num_words=77):
+    """
+    Get the attention alpha values for time and words.
+
+    Args:
+        prompts (list): List of prompts.
+        num_steps (int): Number of steps.
+        cross_replace_steps (Union[float, Dict[str, Tuple[float, float]]]): Cross replace steps.
+        tokenizer: Tokenizer to encode the prompts.
+        max_num_words (int): Maximum number of words. Default is 77.
+    
+    Returns:
+        torch.Tensor: Attention alpha values.
+    """
     if type(cross_replace_steps) is not dict:
         cross_replace_steps = {"default_": cross_replace_steps}
     if "default_" not in cross_replace_steps:

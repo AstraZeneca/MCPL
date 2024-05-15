@@ -7,7 +7,6 @@ from tqdm import tqdm, trange
 from einops import rearrange
 from torchvision.utils import make_grid
 
-sys.path.append('/home/jovyan/vol-1/root_chen/git_chen/textual_inversion_chen')
 from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler

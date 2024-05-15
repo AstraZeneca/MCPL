@@ -1,3 +1,5 @@
+# MIT License from https://github.com/CompVis/latent-diffusion?tab=MIT-1-ov-file#readme
+
 #!/bin/bash
 wget -O models/first_stage_models/kl-f4/model.zip https://ommer-lab.com/files/latent-diffusion/kl-f4.zip
 wget -O models/first_stage_models/kl-f8/model.zip https://ommer-lab.com/files/latent-diffusion/kl-f8.zip
