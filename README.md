@@ -230,10 +230,12 @@ AssertionError: String 'peachy' maps to more than a single token. Please use ano
 If you make use of our work, please cite our paper:
 
 ```
-@article{jin2023image,
-  title={An image is worth multiple words: Learning object level concepts using multi-concept prompt learning},
-  author={Jin, Chen and Tanno, Ryutaro and Saseendran, Amrutha and Diethe, Tom and Teare, Philip},
-  journal={arXiv preprint arXiv:2310.12274},
-  year={2023}
+@inproceedings{
+anonymous2024an,
+title={An Image is Worth Multiple Words: Discovering Object Level Concepts using Multi-Concept Prompt Learning},
+author={Anonymous},
+booktitle={Forty-first International Conference on Machine Learning},
+year={2024},
+url={https://openreview.net/forum?id=F3x6uYILgL}
 }
 ```
