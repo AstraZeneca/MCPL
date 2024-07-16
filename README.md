@@ -2,15 +2,14 @@
 
 <a href="https://astrazeneca.github.io/mcpl.github.io/"><img src="https://img.shields.io/static/v1?label=Project&message=Website&color=blue"></a>
 <a href="https://arxiv.org/abs/2310.12274"><img src="https://img.shields.io/badge/arXiv-2305.16311-b31b1b.svg"></a>
-<a href="https://www.youtube.com/watch?v=n4irrHj8xIA"><img src="https://img.shields.io/static/v1?label=YouTube&message=Video&color=orange"></a>
+<a href="https://www.youtube.com/watch?v=EXnyT-JVG5U"><img src="https://img.shields.io/static/v1?label=YouTube&message=Video&color=orange"></a>
 <a href="https://www.apache.org/licenses/LICENSE-2.0.txt"><img src="https://img.shields.io/badge/License-Apache-yellow"></a>
 <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch->=1.10.0-Red?logo=pytorch"></a>
 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/papers/2310.12274)
 ![Maturity level-0](https://img.shields.io/badge/Maturity%20Level-ML--0-red)
 
-<a href="https://astrazeneca.github.io/mcpl.github.io/"><img src="docs/MCPL-ICML-2024-sim.gif" /></a>
-
-![teaser](docs/teaser.jpg)
+![teaser](docs/teaser_tldr.jpg)
+<a href="https://astrazeneca.github.io/mcpl.github.io/"><img src="docs/MCPL-ICML-2024-ext-sim.gif" /></a>
 
 > <a href="https://astrazeneca.github.io/mcpl.github.io">**An Image is Worth Multiple Words: Discovering Object Level Concepts using Multi-Concept Prompt Learning (ICML 2024)**</a>
 >
