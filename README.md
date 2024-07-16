@@ -73,7 +73,7 @@ We generate and collected a [Multi-Concept-Dataset](dataset) including a total o
 Our code builds on, and shares requirements with [Latent Diffusion Models (LDM)](https://github.com/CompVis/latent-diffusion). To set up their environment, please run:
 
 ```
-conda env create -f environment.yaml
+conda env create -f environment.yml
 conda activate ldm
 ```
 
